@@ -33,16 +33,32 @@ class NNUEWriter():
     self.int32(len(description)) # Network definition
     self.buf.extend(description)
 
+  def coalesce_weights(self, weights):
+    # incoming weights are in [256][INPUTS]
+    k_base = 41024
+    p_base = k_base + 64
+    result = []
+    for i in range(k_base):
+      k_idx = i // halfkp.NUM_PLANES
+      p_idx = (i % halfkp.NUM_PLANES) - 1
+      w = weights.narrow(1, i, 1)
+      w += weights.narrow(1, k_base + k_idx, 1)
+      w += weights.narrow(1, p_base + p_idx, 1)
+      result.append(w)
+    return torch.cat(result, dim=1)
+
   def write_feature_transformer(self, layer):
     # int16 bias = round(x * 127)
     # int16 weight = round(x * 127)
     bias = layer.bias.data
     bias = bias.mul(127).round().to(torch.int16)
-    print(numpy.histogram(bias.numpy()))
+    print('ft bias:', numpy.histogram(bias.numpy()))
     self.buf.extend(bias.flatten().numpy().tobytes())
+
     weight = layer.weight.data
+    weight = self.coalesce_weights(weight)
     weight = weight.mul(127).round().to(torch.int16)
-    print(numpy.histogram(weight.numpy()))
+    print('ft weight:', numpy.histogram(weight.numpy()))
     # weights stored as [41024][256], so we need to transpose the pytorch [256][41024]
     self.buf.extend(weight.transpose(0, 1).flatten().numpy().tobytes())
 
@@ -60,14 +76,12 @@ class NNUEWriter():
     # int32 bias = round(x * kBiasScale)
     # int8 weight = round(x * kWeightScale)
     bias = layer.bias.data
-    print(numpy.histogram(bias.numpy()))
     bias = bias.mul(kBiasScale).round().to(torch.int32)
-    print(numpy.histogram(bias.numpy()))
+    print('fc bias:', numpy.histogram(bias.numpy()))
     self.buf.extend(bias.flatten().numpy().tobytes())
     weight = layer.weight.data
     weight = weight.clamp(-kMaxWeight, kMaxWeight).mul(kWeightScale).round().to(torch.int8)
-    print(weight.shape)
-    print(numpy.histogram(weight.numpy()))
+    print('fc weight:', numpy.histogram(weight.numpy()))
     # Stored as [outputs][inputs], so we can flatten
     self.buf.extend(weight.flatten().numpy().tobytes())
 
