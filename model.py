@@ -19,16 +19,17 @@ class NNUE(pl.LightningModule):
 
   It is not ideal for training a Pytorch quantized model directly.
   """
-  def __init__(self, feature_set=halfkp, lambda_=1.0, factorized=False):
+  def __init__(self, feature_set=halfkp, lambda_=1.0):
     super(NNUE, self).__init__()
-    if factorized:
-      num_inputs = feature_set.FACTORIZED_INPUTS
-    else:
-      num_inputs = feature_set.INPUTS
+    num_inputs = feature_set.INPUTS
     self.input = nn.Linear(num_inputs, L1)
-    if factorized:
-      # Zero out the weights for the factors
-      self.input.weight[feature_set.INPUTS:] + torch.zeros(feature_set.FACTORIZED_INPUTS - feature_set.INPUTS)
+
+    # Zero out the weights/biases for the factorized features
+    # Weights stored as [256][41024]
+    weights = self.input.weight.narrow(1, 0, feature_set.INPUTS - feature_set.FACTOR_INPUTS)
+    weights = torch.cat((weights, torch.zeros(L1, feature_set.FACTOR_INPUTS)), dim=1)
+    self.input.weight = nn.Parameter(weights)
+
     self.l1 = nn.Linear(2 * L1, L2)
     self.l2 = nn.Linear(L2, L3)
     self.output = nn.Linear(L3, 1)
