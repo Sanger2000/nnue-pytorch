@@ -10,7 +10,7 @@ NUM_PLANES = (NUM_SQ * NUM_PT + 1)
 FACTORS = {
   'kings': 64,
   'pieces': 640,
-  #'relative_halfkp': 2250,
+  'relative_halfkp': 2250,
 }
 INPUTS = NUM_PLANES * NUM_SQ # 41024
 FACTOR_INPUTS = sum(FACTORS.values())
