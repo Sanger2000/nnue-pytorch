@@ -26,7 +26,7 @@ def halfkp_idx(is_white_pov: bool, king_sq: int, sq: int, p: chess.Piece):
 
 def get_halfkp_indices(board: chess.Board):
   def piece_indices(turn):
-    indices = torch.zeros(INPUTS)
+    indices = torch.zeros(INPUTS - FACTOR_INPUTS)
     for sq, p in board.piece_map().items():
       if p.piece_type == chess.KING:
         continue

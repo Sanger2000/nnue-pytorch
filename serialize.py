@@ -9,6 +9,28 @@ import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
+def coalesce_weights(weights):
+  # incoming weights are in [256][INPUTS]
+  print('factorized shape:', weights.shape)
+  k_base = 41024
+  p_base = k_base + 64
+  result = []
+  # Goal here is to add together all the weights that would be active for the
+  # given piece and king position in the halfkp inputs.
+  for i in range(k_base):
+    k_idx = i // halfkp.NUM_PLANES
+    p_idx = i % halfkp.NUM_PLANES
+    w = weights.narrow(1, i, 1).clone()
+    # TODO - divide by 20 to approximate # of pieces on the board, but this is
+    # a huge hack.  Issue is there is only one king position set in the factored
+    # positions, but we add it's weights to the # of pieces on the board.  This
+    # vastly overweights the king value.
+    w = w + weights.narrow(1, k_base + k_idx, 1) / 20
+    if p_idx > 0:
+      w = w + weights.narrow(1, p_base + p_idx - 1, 1)
+    result.append(w)
+  return torch.cat(result, dim=1)
+
 class NNUEWriter():
   """
   All values are stored in little endian.
@@ -33,20 +55,6 @@ class NNUEWriter():
     self.int32(len(description)) # Network definition
     self.buf.extend(description)
 
-  def coalesce_weights(self, weights):
-    # incoming weights are in [256][INPUTS]
-    k_base = 41024
-    p_base = k_base + 64
-    result = []
-    for i in range(k_base):
-      k_idx = i // halfkp.NUM_PLANES
-      p_idx = (i % halfkp.NUM_PLANES) - 1
-      w = weights.narrow(1, i, 1)
-      w += weights.narrow(1, k_base + k_idx, 1)
-      w += weights.narrow(1, p_base + p_idx, 1)
-      result.append(w)
-    return torch.cat(result, dim=1)
-
   def write_feature_transformer(self, layer):
     # int16 bias = round(x * 127)
     # int16 weight = round(x * 127)
@@ -56,7 +64,7 @@ class NNUEWriter():
     self.buf.extend(bias.flatten().numpy().tobytes())
 
     weight = layer.weight.data
-    weight = self.coalesce_weights(weight)
+    weight = coalesce_weights(weight)
     weight = weight.mul(127).round().to(torch.int16)
     print('ft weight:', numpy.histogram(weight.numpy()))
     # weights stored as [41024][256], so we need to transpose the pytorch [256][41024]
@@ -138,6 +146,25 @@ class NNUEReader():
       raise Exception("Expected: %x, got %x" % (expected, v))
     return v
 
+def test(model):
+  import nnue_dataset
+  dataset = 'd8_100000.bin'
+  stream_cpp = nnue_dataset.SparseBatchDataset(halfkp.NAME, dataset, 1)
+  stream_cpp_iter = iter(stream_cpp)
+  tensors_cpp  = next(stream_cpp_iter)[:4]
+  print('cpp:', tensors_cpp[3])
+  print(model(*tensors_cpp))
+
+  stream_py = nnue_bin_dataset.NNUEBinData(dataset)
+  stream_py_iter = iter(stream_py)
+  tensors_py = next(stream_py_iter)
+  print('python:', torch.nonzero(tensors_py[3]).squeeze())
+  tensors_py = [v.reshape((1,-1)) for v in tensors_py[:4]]
+
+  weights = coalesce_weights(model.input.weight.data)
+  model.input.weight = torch.nn.Parameter(weights)
+  print(model(*tensors_py))
+
 def main():
   parser = argparse.ArgumentParser(description="Converts files between ckpt and nnue format.")
   parser.add_argument("source", help="Source file (can be .ckpt, .pt or .nnue)")
@@ -153,6 +180,8 @@ def main():
       nnue = torch.load(args.source)
     else:
       nnue = M.NNUE.load_from_checkpoint(args.source)
+    nnue.eval()
+    #test(nnue)
     writer = NNUEWriter(nnue)
     with open(args.target, 'wb') as f:
       f.write(writer.buf)
