@@ -32,15 +32,13 @@ struct HalfKP {
     // Factorized features
     static constexpr int K_INPUTS = NUM_SQ;
     static constexpr int PIECE_INPUTS = NUM_SQ * NUM_PT;
-    static constexpr int HALF_REL_KP_INPUTS = NUM_PT * 15 * 15;
 
-    static constexpr int INPUTS = HALFKP_INPUTS + K_INPUTS + PIECE_INPUTS + HALF_REL_KP_INPUTS;
+    static constexpr int INPUTS = HALFKP_INPUTS + K_INPUTS + PIECE_INPUTS;
 
     // Factorized features
     static constexpr int MAX_K_FEATURES = 1;
     static constexpr int MAX_PIECE_FEATURES = 32;
-    static constexpr int MAX_HALF_RELATIVE_KP_FEATURES = 30;
-    static constexpr int MAX_FACTOR_FEATURES = MAX_K_FEATURES + MAX_PIECE_FEATURES + MAX_HALF_RELATIVE_KP_FEATURES;
+    static constexpr int MAX_FACTOR_FEATURES = MAX_K_FEATURES + MAX_PIECE_FEATURES;
 
     // HalfKP features
     static constexpr int MAX_ACTIVE_FEATURES = 32 + MAX_FACTOR_FEATURES;
@@ -64,16 +62,6 @@ struct HalfKP {
     {
         auto p_idx = static_cast<int>(p.type()) * 2 + (p.color() != color);
         return 1 + static_cast<int>(orient(color, sq)) + p_idx * NUM_SQ + static_cast<int>(ksq) * NUM_PLANES;
-    }
-
-    static int half_relative_kp(Color color, Square ksq, Square sq, Piece p)
-    {
-        constexpr int W = 15;
-        constexpr int H = 15;
-        auto p_idx = static_cast<int>(p.type()) * 2 + (p.color() != color);
-        int relative_file = sq.file() - ksq.file() + (W / 2);
-        int relative_rank = sq.rank() - ksq.rank() + (H / 2);
-        return (p_idx * W * H) + H * relative_file + relative_rank;
     }
 
     static void fill_features_sparse(int i, const TrainingDataEntry& e, int* features, int& counter, Color color)
@@ -107,16 +95,6 @@ struct HalfKP {
             features[idx] = i;
             auto p_idx = static_cast<int>(p.type()) * 2 + (p.color() != color);
             features[idx + 1] = offset + (p_idx * NUM_SQ) + static_cast<int>(orient(color, sq));
-        }
-        offset += PIECE_INPUTS;
-        for(Square sq : pieces)
-        {
-            // piece position relative to our king - no kings included
-            auto p = pos.pieceAt(sq);
-            int idx = counter * 2;
-            counter += 1;
-            features[idx] = i;
-            features[idx + 1] = offset + half_relative_kp(color, orient(color, ksq), sq, p);
         }
     }
 };
