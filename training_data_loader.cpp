@@ -82,6 +82,8 @@ struct HalfKPFactorized {
     {
         int offset = HalfKP::fill_features_sparse(i, e, features, counter, color);
         auto& pos = e.pos;
+        auto pieces = pos.piecesBB() & ~(pos.piecesBB(Piece(PieceType::King, Color::White)) | pos.piecesBB(Piece(PieceType::King, Color::Black)));
+        for(Square sq : pieces)
         {
             // king square factor
             auto ksq = pos.kingSquare(color);
@@ -91,7 +93,6 @@ struct HalfKPFactorized {
             features[idx + 1] = offset + static_cast<int>(orient(color, ksq));
         }
         offset += K_INPUTS;
-        auto pieces = pos.piecesBB() & ~(pos.piecesBB(Piece(PieceType::King, Color::White)) | pos.piecesBB(Piece(PieceType::King, Color::Black)));
         for(Square sq : pieces)
         {
             // pieces (without king included).
