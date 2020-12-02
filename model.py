@@ -27,9 +27,10 @@ class NNUE(pl.LightningModule):
 
     # Zero out the weights/biases for the factorized features
     # Weights stored as [256][41024]
-    weights = self.input.weight.narrow(1, 0, feature_set.INPUTS - feature_set.FACTOR_INPUTS)
-    weights = torch.cat((weights, torch.zeros(L1, feature_set.FACTOR_INPUTS)), dim=1)
-    self.input.weight = nn.Parameter(weights)
+    #weights = self.input.weight.narrow(1, 0, feature_set.INPUTS - feature_set.FACTOR_INPUTS)
+
+    #weights = torch.cat((weights, torch.zeros(L1, feature_set.FACTOR_INPUTS)), dim=1)
+    #self.input.weight = nn.Parameter(weights)
 
     self.l1 = nn.Linear(2 * L1, L2)
     self.l2 = nn.Linear(L2, L3)
@@ -37,6 +38,10 @@ class NNUE(pl.LightningModule):
     self.lambda_ = lambda_
 
   def forward(self, us, them, w_in, b_in):
+
+    #print(us)
+    #print(them)
+
     w = self.input(w_in)
     b = self.input(b_in)
     l0_ = (us * torch.cat([w, b], dim=1)) + (them * torch.cat([b, w], dim=1))
@@ -54,6 +59,7 @@ class NNUE(pl.LightningModule):
     t = outcome
     # Divide score by 600.0 to match the expected NNUE scaling factor
     p = (score / 600.0).sigmoid()
+
     epsilon = 1e-12
     teacher_entropy = -(p * (p + epsilon).log() + (1.0 - p) * (1.0 - p + epsilon).log())
     outcome_entropy = -(t * (t + epsilon).log() + (1.0 - t) * (1.0 - t + epsilon).log())
