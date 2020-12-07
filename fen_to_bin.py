@@ -1,6 +1,8 @@
 import numpy as np
+import mmap
 import time
 from multiprocessing import Pool
+from nnue_bin_dataset import NNUEBinData
 
 pawn_orientations = {'ne': 0, 'nw': 1, 'sw': 2, 'se': 3}
 king_orientations = {'ee': 0, 'nn': 1, 'ww': 2, 'ss': 3}
@@ -38,7 +40,7 @@ def fen_to_bitvec(datapoint):
             else:
                 elem = pos[j:j+2].lower()
                 is_white = (elem != pos[j:j+2])
-
+                curr_loc = (loc % 8) + (7- (loc // 8))*8
                 if elem in pawn_orientations:
                     pos_dict[loc] = (pawn_orientations[elem], np.uint16(not is_white))
                 else:
@@ -69,6 +71,7 @@ def encode_position(pos_dict, white_king_pos, black_king_pos, score, is_white):
           else:
               pos = encode_bit(data, pos, 0)
 
+    pos = 32*8
     pos = encode_bits(data, pos, np.int16(score), 16)
 
     return data
@@ -86,17 +89,36 @@ def chunkIt(seq, num):
 
 def fens_to_bitvec(fens):
     return [fen_to_bitvec(fen) for fen in fens]
+
+def test_conversion(fen, score):
+    vals = fen_to_bitvec((fen, score))
+    with open("test.bin", "wb") as f:
+        for val in vals:
+            f.write(val)
+
+    bin_data = NNUEBinData("train.bin")
+    print(bin_data.get_raw(0))
+
+
 if __name__ == '__main__':
+    '''
+
     lines = None
-    with open("/Users/amansanger/Desktop/6.172/project4/project4/training/remote.fen", "r") as fen_file:
+    with open("../project4/training/remote.fen", "r") as fen_file:
         lines = fen_file.read().strip().split('\n')
 
 
     fens = [lines[i] for i in range(0, len(lines), 2)]
     scores = [int(lines[i]) for i in range(1, len(lines), 2)]
 
-    first_fens = fens[:10000]
-    first_scores = scores[:10000]
+    state = np.random.get_state()
+    np.random.shuffle(fens)
+
+    np.random.set_state(state)
+    np.random.shuffle(scores)
+
+    first_fens = fens[:-100000]
+    first_scores = scores[:-100000]
 
     split_data = chunkIt(list(zip(first_fens, first_scores)), 8)
 
@@ -105,14 +127,17 @@ if __name__ == '__main__':
         processed_data = p.map(fens_to_bitvec, split_data)
 
     processed_data = np.concatenate(processed_data).flatten()
+
+    print(processed_data.dtype)
+    print(len(processed_data))
     with open("train_data.bin", "wb") as train_file:
         for elem in processed_data:
             train_file.write(elem)
 
     # VALID DATA NOW:
 
-    second_fens = fens[-10000:]
-    second_scores = scores[-10000:]
+    second_fens = fens[-100000:]
+    second_scores = scores[-100000:]
 
     split_data = chunkIt(list(zip(second_fens, second_scores)), 8)
 
@@ -124,3 +149,6 @@ if __name__ == '__main__':
         for elem in processed_data:
             valid_file.write(elem)
 
+    '''
+    bin_data = NNUEBinData("../train.bin")
+    bin_data.get_raw(100)

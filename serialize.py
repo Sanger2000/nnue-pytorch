@@ -76,7 +76,7 @@ class NNUEWriter():
     self.buf.extend(bias.flatten().numpy().tobytes())
 
     weight = layer.weight.data
-    weight = coalesce_weights(weight)
+    #weight = coalesce_weights(weight)
     weight = weight.mul(127).round().to(torch.int16)
     ascii_hist('ft weight:', weight.numpy())
     # weights stored as [41024][256], so we need to transpose the pytorch [256][41024]
@@ -128,7 +128,7 @@ class NNUEReader():
     description = self.f.read(desc_len)
 
   def tensor(self, dtype, shape):
-    d = numpy.fromfile(self.f, dtype, math.prod(shape))
+    d = numpy.fromfile(self.f, dtype, numpy.prod(shape))
     d = torch.from_numpy(d.astype(numpy.float32))
     d = d.reshape(shape)
     return d
@@ -173,6 +173,7 @@ def test(model):
   print('python:', torch.nonzero(tensors_py[3]).squeeze())
   tensors_py = [v.reshape((1,-1)) for v in tensors_py[:4]]
 
+  
   weights = coalesce_weights(model.input.weight.data)
   model.input.weight = torch.nn.Parameter(weights)
   print(model(*tensors_py))

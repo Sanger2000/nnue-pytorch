@@ -93,6 +93,7 @@ class NNUEBinData(torch.utils.data.Dataset):
       br.refill()
       for file_ in range(8):
         i = chess.square(file_, rank_)
+        assert(i == rank_*8 + file_)
         if white_king_sq == i or black_king_sq == i:
           continue
         if br.readBits(1):
@@ -104,7 +105,9 @@ class NNUEBinData(torch.utils.data.Dataset):
           br.refill()
     
     br.seek(base + 32)
-    score = twos(br.readBits(16), 16)
+    next_val = br.readBits(16)
+    score = twos(next_val, 16)
+    
     move = br.readBits(16)
     to_ = move & 63
     from_ = (move & (63 << 6)) >> 6
@@ -113,11 +116,15 @@ class NNUEBinData(torch.utils.data.Dataset):
     ply = br.readBits(16)
     bd.fullmove_number = ply // 2
 
+
     move = chess.Move(from_square=chess.SQUARES[from_], to_square=chess.SQUARES[to_])
     
     # 1, 0, -1
     game_result = br.readBits(8)
     outcome = {1: 1.0, 0: 0.5, 255: 0.0}[game_result]
+    print(bd.fen())
+    print(bd)
+    print(score)
     return bd, move, outcome, score
 
   def __getitem__(self, idx):
