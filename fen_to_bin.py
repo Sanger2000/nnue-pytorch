@@ -95,11 +95,11 @@ def test_conversion(fen, score):
     with open("test.bin", "wb") as f:
         for val in vals:
             f.write(val)
-    
+
     bin_data = NNUEBinData("train.bin")
     print(bin_data.get_raw(0))
 
-    
+
 if __name__ == '__main__':
     '''
 
