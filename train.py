@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader, Dataset
 
 def data_loader_cc(train_filename, val_filename, num_workers, batch_size, filtered):
   # Epoch and validation sizes are arbitrary
-  epoch_size = 100000000
-  val_size = 1000000
+  epoch_size = int(2e7)
+  val_size = int(1e6)
   train_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, train_filename, batch_size, num_workers=num_workers, filtered=filtered)
   val_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, val_filename, batch_size, filtered=filtered)
   # num_workers has to be 0 for sparse, and 1 for dense
@@ -68,7 +68,7 @@ def main():
   print('Using log dir {}'.format(logdir), flush=True)
 
   tb_logger = pl_loggers.TensorBoardLogger(logdir)
-  checkpoint_callback = pl.callbacks.ModelCheckpoint(save_top_k=1, save_last=True, monitor='val_loss', filename='{epoch}-{val_loss:.2f}')
+  checkpoint_callback = pl.callbacks.ModelCheckpoint(save_top_k=1, save_last=True, monitor='val_loss', filename='best_model')
   trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback], logger=tb_logger)
   trainer.fit(nnue, train, val)
 
