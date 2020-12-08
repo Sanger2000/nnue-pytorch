@@ -66,8 +66,10 @@ struct HalfKPLeiser {
 
     static int feature_index(Color color, Square ksq, int kori, Square sq, Piece p)
     {
-        int p_idx = orient(color, static_cast<uint8_t>(p.type())) * 2 + (p.color() != color);
-        return 1 + static_cast<int>(orient(color, sq)) + p_idx * NUM_SQ + (static_cast<int>(ksq) * 4 + kori) * NUM_PLANES;
+        //int p_idx = orient(color, static_cast<uint8_t>(p.type())) * 2 + (p.color() != color);
+        int p_idx = static_cast<uint8_t>(p.type()) * 2 + (p.color() != color);
+        //return 1 + static_cast<int>(orient(color, sq)) + p_idx * NUM_SQ + (static_cast<int>(ksq) * 4 + kori) * NUM_PLANES;
+        return 1 + static_cast<int>(sq) + p_idx * NUM_SQ + (static_cast<int>(ksq) * 4 + kori) * NUM_PLANES;
     }
 
     static int fill_features_sparse(int i, const TrainingDataEntry& e, int* features, int& counter, Color color)
@@ -75,14 +77,16 @@ struct HalfKPLeiser {
         auto& pos = e.pos;
         auto pieces = pos.piecesBB() & ~(pos.piecesBB(Piece(PieceType::King, Color::White)) | pos.piecesBB(Piece(PieceType::King, Color::Black)));
         auto ksq = pos.kingSquare(color);
-        uint8_t kori = orient(color, KING_ORI(static_cast<int>(color), e.ply));
+        //uint8_t kori = orient(color, KING_ORI(static_cast<int>(color), e.ply));
+        uint8_t kori = KING_ORI(static_cast<int>(color), e.ply);
         for(Square sq : pieces)
         {
             auto p = pos.pieceAt(sq);
             int idx = counter * 2;
             counter += 1;
             features[idx] = i;
-            features[idx + 1] = feature_index(color, orient(color, ksq), kori, sq, p);
+            //features[idx + 1] = feature_index(color, orient(color, ksq), kori, sq, p);
+            features[idx + 1] = feature_index(color, ksq, kori, sq, p);
         }
         return INPUTS;
     }
