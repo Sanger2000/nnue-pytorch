@@ -20,9 +20,8 @@ class NNUE(pl.LightningModule):
 
   It is not ideal for training a Pytorch quantized model directly.
   """
-  def __init__(self, feature_set=halfkp, lambda_=1.0):
+  def __init__(self, num_inputs=halfkp.INPUTS, lambda_=1.0):
     super(NNUE, self).__init__()
-    num_inputs = feature_set.INPUTS
     self.input = nn.Linear(num_inputs, L1)
 
     # Zero out the weights/biases for the factorized features
@@ -88,3 +87,4 @@ class NNUE(pl.LightningModule):
   def configure_optimizers(self):
     optimizer = ranger.Ranger(self.parameters())
     return optimizer
+
