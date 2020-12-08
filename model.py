@@ -1,5 +1,5 @@
 import chess
-import halfkp
+from halfkp import INPUTS, LEISER_INPUTS
 import ranger
 import torch
 from torch import nn
@@ -20,7 +20,7 @@ class NNUE(pl.LightningModule):
 
   It is not ideal for training a Pytorch quantized model directly.
   """
-  def __init__(self, num_inputs=halfkp.INPUTS, lambda_=1.0):
+  def __init__(self, num_inputs=INPUTS, lambda_=1.0):
     super(NNUE, self).__init__()
     self.input = nn.Linear(num_inputs, L1)
 

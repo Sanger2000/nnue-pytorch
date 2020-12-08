@@ -158,6 +158,7 @@ class NNUEBinData(torch.utils.data.Dataset):
     super(NNUEBinData, self).__init__()
     self.filename = filename
     self.len = os.path.getsize(filename) // PACKED_SFEN_VALUE_BYTES
+    print(self.len)
     self.transform = transform
     self.file = None
 
@@ -214,9 +215,6 @@ class NNUEBinData(torch.utils.data.Dataset):
     # 1, 0, -1
     game_result = br.readBits(8)
     outcome = {1: 1.0, 0: 0.5, 255: 0.0}[game_result]
-    print(bd.fen())
-    print(bd)
-    print(score)
     return bd, move, outcome, score
 
   def __getitem__(self, idx):
