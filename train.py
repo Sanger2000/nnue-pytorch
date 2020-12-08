@@ -39,7 +39,7 @@ def main():
   parser.add_argument("--smart-fen-skipping", action='store_true', dest='smart_fen_skipping', help="If enabled positions that are bad training targets will be skipped during loading. Default: False")
   args = parser.parse_args()
 
-  nnue = M.NNUE(halfkp, lambda_=args.lambda_)
+  nnue = M.NNUE(lambda_=args.lambda_)
 
   print("Training with {} validating with {}".format(args.train, args.val))
 

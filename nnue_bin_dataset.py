@@ -61,11 +61,104 @@ class RandomFlip(object):
       bd = bd.mirror()
     return bd, move, outcome, score
 
+class LeiserNNUEBinData(torch.utils.data.Dataset):
+  def __init__(self, filename):
+    super(NNUEBinData, self).__init__()
+    self.filename = filename
+    self.len = os.path.getsize(filename) // PACKED_SFEN_VALUE_BYTES
+    self.file = None
+
+  def __len__(self):
+    return self.len
+
+  def get_raw(self, idx):
+    if self.file is None:
+      self.file = open(self.filename, 'r+b')
+      self.bytes = mmap.mmap(self.file.fileno(), 0)
+
+    base = PACKED_SFEN_VALUE_BYTES * idx
+    br = BitReader(self.bytes, base)
+
+
+    bd = chess.Board(fen=None)
+    turn = not br.readBits(1)
+    white_king_sq = br.readBits(6)
+    white_king_ori = br.readBits(2)
+
+    black_king_sq = br.readBits(6)
+    black_king_ori = br.readBits(2)
+
+    bd.set_piece_at(white_king_sq, chess.Piece(chess.KING, chess.WHITE))
+    bd.set_piece_at(black_king_sq, chess.Piece(chess.KING, chess.BLACK))
+    
+    assert(black_king_sq != white_king_sq)
+
+    white_offset = white_king_sq * white_king_ori * halfkp.NUM_LEISER_PLANES
+    black_offset = black_king_sq * black_king_ori * halfkp.NUM_LEISER_PLANES
+
+    # Output sparse vectors:
+    whites = torch.zeros(halfkp.LEISER_INPUTS, dtype=torch.Float)
+    blacks = torch.zeros(halfkp.LEISER_INPUTS, dtype=torch.Float)
+    
+    for rank_ in range(8)[::-1]:
+      br.refill()
+      for file_ in range(8):
+        i = chess.square(file_, rank_)
+        assert(i == rank_*8 + file_)
+        if white_king_sq == i or black_king_sq == i:
+          continue
+        if br.readBits(1):
+          ori = br.readBits(2)
+          color = br.readBits(1)
+
+          whites[white_offset + i*8 + color*4 + ori] = 1.0
+          blacks[black_offset + i*8 + color*4 + ori] = 1.0
+
+          br.refill()
+    
+    br.seek(base + 32)
+    next_val = br.readBits(16)
+    score = twos(next_val, 16)
+    
+    move = br.readBits(16)
+    to_ = move & 63
+    from_ = (move & (63 << 6)) >> 6
+    
+    br.refill()
+    ply = br.readBits(16)
+    bd.fullmove_number = ply // 2
+
+
+    move = None
+    
+    # 1, 0, -1
+    game_result = br.readBits(8)
+    outcome = {1: 1.0, 0: 0.5, 255: 0.0}[game_result]
+
+    # Tensors that can be fed into neural network
+    us = torch.tensor([turn], dtype=torch.Float)
+    them = torch.tensor([not turn], dtype=torch.Float)
+    outcome = torch.tensor([outcome], dtype=torch.Float)
+    score = torch.tensor([score], dtype=torch.Float)
+
+    return us, them, white, black, outcome, score
+
+  def __getitem__(self, idx):
+    return self.get_raw(idx)
+
+  # Allows this class to be pickled (otherwise you will get file handle errors).
+  def __getstate__(self):
+    state = self.__dict__.copy()
+    state['file'] = None
+    state.pop('bytes', None)
+    return state
+
 class NNUEBinData(torch.utils.data.Dataset):
   def __init__(self, filename, transform=ToTensor()):
     super(NNUEBinData, self).__init__()
     self.filename = filename
     self.len = os.path.getsize(filename) // PACKED_SFEN_VALUE_BYTES
+    print(self.len)
     self.transform = transform
     self.file = None
 
@@ -122,9 +215,6 @@ class NNUEBinData(torch.utils.data.Dataset):
     # 1, 0, -1
     game_result = br.readBits(8)
     outcome = {1: 1.0, 0: 0.5, 255: 0.0}[game_result]
-    print(bd.fen())
-    print(bd)
-    print(score)
     return bd, move, outcome, score
 
   def __getitem__(self, idx):
