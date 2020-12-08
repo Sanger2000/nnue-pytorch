@@ -14,10 +14,12 @@ y = 0
 first = ToTensor()((bd, None, 0.5, 1))
 '''
 with open("test.bin", "wb") as f:
-    for val in out:
-        f.write(val)
+    output_stream(b, y, f)
 
-val = NNUEBinData("test.bin")
+val_filename = "test.bin"
+val_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, val_filename, 1, filtered=False)
+val = nnue_dataset.FixedNumBatchesDataset(val_infinite, 100000)
+#val = NNUEBinData("test.bin")
 print(len(val))
 
 first = val.get_raw(0)
@@ -28,3 +30,4 @@ print(first)
 model.load_state_dict(checkpoint['state_dict'])
 print(int(model(first[0].reshape(1, -1), first[1].reshape(1, -1), \
             first[2].reshape(1, -1), first[3].reshape(1, -1))*600))
+
