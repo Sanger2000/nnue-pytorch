@@ -43,7 +43,7 @@ def main():
   if args.architecture.lower() == "leiser":
       data_name = halfkp.LEISER_NAME
       model_inputs = halfkp.LESER_INPUTS
-  else if args.architecture.lower() == "normal":
+  elif args.architecture.lower() == "normal":
       data_name = halfkp.NAME
       model_inputs = halfkp.INPUTS
   else:
