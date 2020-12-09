@@ -12,8 +12,8 @@ def data_loader_cc(train_filename, val_filename, num_workers, batch_size, filter
   # Epoch and validation sizes are arbitrary
   epoch_size = int(5e7)
   val_size = epoch_size // 20
-  train_infinite = nnue_dataset.SparseBatchDataset(halfkp.LEISER_NAME, train_filename, batch_size, num_workers=num_workers, filtered=filtered)
-  val_infinite = nnue_dataset.SparseBatchDataset(halfkp.LEISER_NAME, val_filename, batch_size, filtered=filtered)
+  train_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, train_filename, batch_size, num_workers=num_workers, filtered=filtered)
+  val_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, val_filename, batch_size, filtered=filtered)
   # num_workers has to be 0 for sparse, and 1 for dense
   # it currently cannot work in parallel mode but it shouldn't need to
   train = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (epoch_size + batch_size - 1) // batch_size), batch_size=None, batch_sampler=None)
@@ -39,7 +39,7 @@ def main():
   parser.add_argument("--smart-fen-skipping", action='store_true', dest='smart_fen_skipping', help="If enabled positions that are bad training targets will be skipped during loading. Default: False")
   args = parser.parse_args()
 
-  nnue = M.NNUE(num_inputs=halfkp.LEISER_INPUTS, lambda_=args.lambda_)
+  nnue = M.NNUE(lambda_=args.lambda_)
 
   print("Training with {} validating with {}".format(args.train, args.val))
 
