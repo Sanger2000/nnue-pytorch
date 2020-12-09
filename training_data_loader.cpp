@@ -102,7 +102,7 @@ struct HalfKP {
 
     static int feature_index(Color color, Square ksq, Square sq, Piece p)
     {
-        auto p_idx = static_cast<int>(dir_orient(color, p.type())) * 2 + (p.color() != color);
+        auto p_idx = dir_orient(color, static_cast<int>(p.type())) * 2 + (p.color() != color);
         return 1 + static_cast<int>(orient(color, sq)) + p_idx * NUM_SQ + static_cast<int>(ksq) * NUM_PLANES;
         //return 1 + static_cast<int>(sq) + p_idx * NUM_SQ + static_cast<int>(ksq) * NUM_PLANES;
     }
