@@ -8,12 +8,12 @@ from torch import set_num_threads as t_set_num_threads
 from pytorch_lightning import loggers as pl_loggers
 from torch.utils.data import DataLoader, Dataset
 
-def data_loader_cc(train_filename, val_filename, num_workers, batch_size, filtered):
+def data_loader_cc(train_filename, val_filename, data_name, num_workers, batch_size, filtered):
   # Epoch and validation sizes are arbitrary
-  epoch_size = int(5e7)
+  epoch_size = int(3e7)
   val_size = epoch_size // 20
-  train_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, train_filename, batch_size, num_workers=num_workers, filtered=filtered)
-  val_infinite = nnue_dataset.SparseBatchDataset(halfkp.NAME, val_filename, batch_size, filtered=filtered)
+  train_infinite = nnue_dataset.SparseBatchDataset(data_name, train_filename, batch_size, num_workers=num_workers, filtered=filtered)
+  val_infinite = nnue_dataset.SparseBatchDataset(data_name, val_filename, batch_size, filtered=filtered)
   # num_workers has to be 0 for sparse, and 1 for dense
   # it currently cannot work in parallel mode but it shouldn't need to
   train = DataLoader(nnue_dataset.FixedNumBatchesDataset(train_infinite, (epoch_size + batch_size - 1) // batch_size), batch_size=None, batch_sampler=None)
@@ -29,6 +29,7 @@ def main():
   parser = argparse.ArgumentParser(description="Trains the network.")
   parser.add_argument("train", help="Training data (.bin or .binpack)")
   parser.add_argument("val", help="Validation data (.bin or .binpack)")
+  parser.add_argument("--architecture", default='normal', help="architecture of model")
   parser = pl.Trainer.add_argparse_args(parser)
   parser.add_argument("--py-data", action="store_true", help="Use python data loader (default=False)")
   parser.add_argument("--lambda", default=1.0, type=float, dest='lambda_', help="lambda=1.0 = train on evaluations, lambda=0.0 = train on game results, interpolates between (default=1.0).")
@@ -39,12 +40,22 @@ def main():
   parser.add_argument("--smart-fen-skipping", action='store_true', dest='smart_fen_skipping', help="If enabled positions that are bad training targets will be skipped during loading. Default: False")
   args = parser.parse_args()
 
-  nnue = M.NNUE(lambda_=args.lambda_)
+  if args.architecture.lower() == "leiser":
+      data_name = halfkp.LEISER_NAME
+      model_inputs = halfkp.LESER_INPUTS
+  elif args.architecture.lower() == "normal":
+      data_name = halfkp.NAME
+      model_inputs = halfkp.INPUTS
+  else:
+      raise Exception("Incorrect architecture name")
+
+  nnue = M.NNUE(num_inputs=model_inputs, lambda_=args.lambda_)
 
   print("Training with {} validating with {}".format(args.train, args.val))
 
   pl.seed_everything(args.seed)
   print("Seed {}".format(args.seed))
+
 
   batch_size = args.batch_size
   if batch_size <= 0:
@@ -62,7 +73,7 @@ def main():
     train, val = data_loader_py(args.train, args.val, batch_size)
   else:
     print('Using c++ data loader')
-    train, val = data_loader_cc(args.train, args.val, args.num_workers, batch_size, args.smart_fen_skipping)
+    train, val = data_loader_cc(args.train, args.val, data_name, args.num_workers, batch_size, args.smart_fen_skipping)
 
   logdir = args.default_root_dir if args.default_root_dir else 'logs/'
   print('Using log dir {}'.format(logdir), flush=True)
