@@ -11,6 +11,35 @@ PACKED_SFEN_VALUE_BYTES = 40
 
 HUFFMAN_MAP = {0b000 : chess.PAWN, 0b001 : chess.KNIGHT, 0b010 : chess.BISHOP, 0b011 : chess.ROOK, 0b100: chess.QUEEN}
 
+reverse_map = {'p': 'ne', 'n': 'nw', 'b': 'sw', 'r': 'se', 'k': 'k'}
+king_map = ['nn', 'ee', 'ss', 'ww']
+
+def convert_fen(fen, white_ori, black_ori):
+  out = ""
+  i = 0
+  while i < len(fen):
+      if fen[i].isnumeric() or fen[i] == "/":
+          out += fen[i]
+      else:
+          val = fen[i].lower()
+          isupper = (val != fen[i])
+
+          if val == 'k':
+              if isupper:
+                  out += king_map[white_ori].upper()
+              else:
+                  out += king_map[black_ori]
+
+          else:
+              if isupper:
+                  out += reverse_map[val].upper()
+              else:
+                  out += reverse_map[val]
+
+      i += 1
+
+  return out
+
 def twos(v, w):
   return v - int((v << 1) & 2**w)
 
@@ -207,14 +236,21 @@ class NNUEBinData(torch.utils.data.Dataset):
     
     br.refill()
     ply = br.readBits(16)
-    bd.fullmove_number = ply // 2
+    #bd.fullmove_number = ply // 2
 
+    white_ori = ply & 3
+    black_ori = (ply >> 2) & 3
 
     move = chess.Move(from_square=chess.SQUARES[from_], to_square=chess.SQUARES[to_])
     
     # 1, 0, -1
     game_result = br.readBits(8)
     outcome = {1: 1.0, 0: 0.5, 255: 0.0}[game_result]
+    outs = bd.fen().split()[:2]
+    print(convert_fen(outs[0], white_ori, black_ori) + " " + outs[1].upper())
+    print("outcome: ", outcome)
+    print("score: ", score)
+    print("oris : ", white_ori, black_ori)
     return bd, move, outcome, score
 
   def __getitem__(self, idx):
