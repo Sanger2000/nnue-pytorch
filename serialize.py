@@ -109,9 +109,9 @@ class NNUEWriter():
     self.buf.extend(struct.pack("<i", v))
 
 class NNUEReader():
-  def __init__(self, f):
+  def __init__(self, f, num_inputs):
     self.f = f
-    self.model = M.NNUE()
+    self.model = M.NNUE(num_inputs=num_inputs)
 
     self.read_header()
     self.read_int32(0x5d69d7b8) # Feature transformer hash
@@ -182,7 +182,16 @@ def main():
   parser = argparse.ArgumentParser(description="Converts files between ckpt and nnue format.")
   parser.add_argument("source", help="Source file (can be .ckpt, .pt or .nnue)")
   parser.add_argument("target", help="Target file (can be .pt or .nnue)")
+  parser.add_argument("--architecture", default="normal", help="model architecture (leiser or normal)")
   args = parser.parse_args()
+
+  if args.architecture.lower() == "leiser":
+      num_inputs = halfkp.LEISER_INPUTS
+  elif args.architecture.lower() == "normal":
+      num_inputs = halfkp.INPUTS
+  else:
+      raise Exception("Non-valid architecture selection" + args.architecture)
+
 
   print('Converting %s to %s' % (args.source, args.target))
 
@@ -192,7 +201,9 @@ def main():
     if args.source.endswith(".pt"):
       nnue = torch.load(args.source)
     else:
-      nnue = M.NNUE.load_from_checkpoint(args.source)
+      nnue = M.NNUE(num_inputs=num_inputs)
+      checkpoint = torch.load(args.source)
+      nnue.load_state_dict(checkpoint['state_dict'])
     nnue.eval()
     #test(nnue)
     writer = NNUEWriter(nnue)
@@ -202,7 +213,7 @@ def main():
     if not args.target.endswith(".pt"):
       raise Exception("Target file must end with .pt")
     with open(args.source, 'rb') as f:
-      reader = NNUEReader(f)
+      reader = NNUEReader(f, num_inputs)
     torch.save(reader.model, args.target)
   else:
     raise Exception('Invalid filetypes: ' + str(args))
