@@ -118,8 +118,8 @@ struct HalfKP {
             int idx = counter * 2;
             counter += 1;
             features[idx] = i;
-            //features[idx + 1] = feature_index(color, orient(color, ksq), sq, p);
-            features[idx + 1] = feature_index(color, ksq, sq, p);
+            features[idx + 1] = feature_index(color, orient(color, ksq), sq, p);
+            //features[idx + 1] = feature_index(color, ksq, sq, p);
         }
         return INPUTS;
     }
